@@ -25,7 +25,9 @@
 #include "modules/server-stats/serverstatsmodel.h"
 #include "modules/updater/updater.h"
 #include "modules/value-editor/embeddedformattersmanager.h"
+#ifdef ENABLE_EXTERNAL_FORMATTERS
 #include "modules/value-editor/externalformattersmanager.h"
+#endif
 #include "modules/value-editor/tabsmodel.h"
 #include "modules/value-editor/valueviewmodel.h"
 #include "qmlutils.h"
@@ -41,9 +43,16 @@ Application::Application(int& argc, char** argv)
   processCmdArgs();
   initAppFonts();
   initRedisClient();
+#ifndef RDM_APPSTORE
   initUpdater();
+#endif
   installTranslator();
   initPython();
+}
+
+Application::~Application()
+{
+    m_connections.clear();
 }
 
 void Application::initModels() {
@@ -69,7 +78,7 @@ void Application::initModels() {
 
   m_keyValues =
       QSharedPointer<ValueEditor::TabsModel>(new ValueEditor::TabsModel(
-          m_keyFactory.staticCast<ValueEditor::AbstractKeyFactory>()));
+          m_keyFactory.staticCast<ValueEditor::AbstractKeyFactory>(), m_events));
 
   connect(m_events.data(), &Events::openValueTab, m_keyValues.data(),
           &ValueEditor::TabsModel::openTab);
@@ -102,20 +111,12 @@ void Application::initModels() {
             m_serverStatsModel->openTab(c);
           });
 
+#ifdef ENABLE_EXTERNAL_FORMATTERS
   m_formattersManager = QSharedPointer<ValueEditor::ExternalFormattersManager>(
       new ValueEditor::ExternalFormattersManager());
 
-  m_embeddedFormatters = QSharedPointer<ValueEditor::EmbeddedFormattersManager>(
-      new ValueEditor::EmbeddedFormattersManager(m_python));
-
   connect(m_formattersManager.data(),
           &ValueEditor::ExternalFormattersManager::error, this,
-          [this](const QString& msg) {
-            m_events->log(QString("Formatters: %1").arg(msg));
-          });
-
-  connect(m_embeddedFormatters.data(),
-          &ValueEditor::EmbeddedFormattersManager::error, this,
           [this](const QString& msg) {
             m_events->log(QString("Formatters: %1").arg(msg));
           });
@@ -125,6 +126,16 @@ void Application::initModels() {
   }
 
   m_formattersManager->loadFormatters();
+#endif
+
+  m_embeddedFormatters = QSharedPointer<ValueEditor::EmbeddedFormattersManager>(
+      new ValueEditor::EmbeddedFormattersManager(m_python));
+
+  connect(m_embeddedFormatters.data(),
+          &ValueEditor::EmbeddedFormattersManager::error, this,
+          [this](const QString& msg) {
+            m_events->log(QString("Formatters: %1").arg(msg));
+          });
 
   m_consoleAutocompleteModel = QSharedPointer<Console::AutocompleteModel>(
       new Console::AutocompleteModel());
@@ -185,8 +196,10 @@ void Application::registerQmlRootObjects() {
                                              m_connections.data());
   m_engine.rootContext()->setContextProperty("keyFactory", m_keyFactory.data());
   m_engine.rootContext()->setContextProperty("valuesModel", m_keyValues.data());
+#ifdef ENABLE_EXTERNAL_FORMATTERS
   m_engine.rootContext()->setContextProperty("formattersManager",
                                              m_formattersManager.data());
+#endif
   m_engine.rootContext()->setContextProperty("embeddedFormattersManager",
                                              m_embeddedFormatters.data());
   m_engine.rootContext()->setContextProperty("consoleModel",

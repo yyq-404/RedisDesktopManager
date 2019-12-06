@@ -142,8 +142,10 @@ Dialog {
                         width:  settingsTabs.width - 20
                         height: settingsTabs.height
 
+                        horizontalScrollBarPolicy: Qt.ScrollBarAlwaysOff
+
                         ColumnLayout {                                                        
-                            width: mainSettingsScrollView.width - 20
+                            width: mainSettingsScrollView.width - 25
                             height: children.height
 
                             GridLayout {
@@ -474,6 +476,20 @@ Dialog {
                                 Layout.fillWidth: true
                                 checked: root.settings ? root.settings.overrideClusterHost : false
                                 onCheckedChanged: root.settings.overrideClusterHost = checked
+                            }
+
+                            SettingsGroupTitle {
+                                text: qsTranslate("RDM","TLS")
+                                Layout.columnSpan: 2
+                            }
+
+                            Label { text: qsTranslate("RDM","Ignore all SSL/TLS errors (<b>dangerous</b>):")}
+
+                            BetterCheckbox {
+                                id: ignoreSSLErrors
+                                Layout.fillWidth: true
+                                checked: root.settings ? root.settings.ignoreSSLErrors : false
+                                onCheckedChanged: root.settings.ignoreSSLErrors = checked
                             }
 
                             Item {
